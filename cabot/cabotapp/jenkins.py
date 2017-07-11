@@ -1,13 +1,11 @@
 from datetime import datetime
 
-import requests
+from jenkinsapi.jenkins import Jenkins
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.utils import timezone
 
 logger = get_task_logger(__name__)
-
-auth = (settings.JENKINS_USER, settings.JENKINS_PASS)
 
 
 def get_job_status(jobname):
@@ -17,19 +15,18 @@ def get_job_status(jobname):
         'blocked_build_time': None,
         'status_code': 200
     }
-    endpoint = settings.JENKINS_API + 'job/%s/api/json' % jobname
-    resp = requests.get(endpoint, auth=auth, verify=True)
-    status = resp.json()
-    ret['status_code'] = resp.status_code
-    ret['job_number'] = status['lastBuild'].get('number', None)
-    if status['color'].startswith('blue') or status['color'].startswith('green'): # Jenkins uses "blue" for successful; Hudson uses "green"
-        ret['active'] = True
-        ret['succeeded'] = True
-    elif status['color'] == 'disabled':
-        ret['active'] = False
-        ret['succeeded'] = False
-    if status['queueItem'] and status['queueItem']['blocked']:
+    JENKINS = Jenkins(settings.JENKINS_API, username=settings.JENKINS_USER, password=settings.JENKINS_PASS)
+
+    job = JENKINS.get_job(jobname)
+
+    last_build = job.get_last_build()
+    ret['job_number'] = last_build.get_number()
+    ret['active'] = last_build.is_enabled()
+    ret['succeeded'] = (last_build.is_enabled()) and last_build.is_good()
+
+    if job.is_queued():
+        in_queued_since = job._data['queueItem']['inQueueSince']  # job.get_queue_item() crashes
         time_blocked_since = datetime.utcfromtimestamp(
-            float(status['queueItem']['inQueueSince']) / 1000).replace(tzinfo=timezone.utc)
+            float(in_queued_since) / 1000).replace(tzinfo=timezone.utc)
         ret['blocked_build_time'] = (timezone.now() - time_blocked_since).total_seconds()
     return ret
