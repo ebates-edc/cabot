@@ -1,0 +1,82 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: cabot
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: cabot
+    spec:
+      nodeSelector:
+        cloud.google.com/gke-nodepool: default-pool
+      containers:
+      - name: web
+        imagePullPolicy: Always
+        image: cabotapp/cabot:0.10.8
+        command: ["sh", "-c", "cabot migrate && gunicorn cabot.wsgi:application -b 0.0.0.0:5000 --workers=5"]
+        ports:
+          - containerPort: 5000
+        env:
+          - name: GRAPHITE_API
+            valueFrom:
+              configMapKeyRef:
+                name: services-config
+                key: graphite_url
+          - name: GRAPHITE_USER
+            valueFrom:
+              configMapKeyRef:
+                name: services-config
+                key: graphite_user
+          - name: GRAPHITE_PASS
+            valueFrom:
+              configMapKeyRef:
+                name: services-config
+                key: graphite_pass
+          - name: ADMIN_EMAIL
+            value: ekampf@ebates.com
+          - name: TIME_ZONE
+            value: US/Pacific
+          - name: HIPCHAT_ALERT_ROOM
+            value: "3972862"
+          - name: HIPCHAT_API_KEY
+            value: TP9inwEuC3WTpVP0UiicY4Eqa0thdKggEm4edATC
+          - name: CABOT_PLUGINS_ENABLED
+            value: cabot_alert_hipchat,cabot_alert_twilio,cabot_alert_email,cabot_alert_slack
+          - name: DJANGO_SETTINGS_MODULE
+            value: cabot.settings
+          - name: DATABASE_URL
+            value: postgres://postgres@127.0.0.1:5432/postgres
+          - name: CELERY_BROKER_URL
+            value: amqp://guest:guest@rabbitmq:5672/
+          - name: LOG_FILE
+            value: /dev/null
+          - name: HTTP_USER_AGENT
+            value: Cabot
+        livenessProbe:
+           tcpSocket:
+             port: 5000
+        readinessProbe:
+           tcpSocket:
+             port: 5000
+      - image: postgres:9.6.3-alpine
+        name: postgres
+        imagePullPolicy: Always
+        ports:
+          - containerPort: 5432
+        volumeMounts:
+          - name: cabot-persist
+            mountPath: /var/lib/postgresql:rw
+      - image: rabbitmq:3.6-alpine
+        name: rabbitmq
+        imagePullPolicy: Always
+        ports:
+          - containerPort: 5672
+      volumes:
+      - name: cabot-persist
+        gcePersistentDisk:
+          pdName: cabot-persist
+          fsType: ext4
