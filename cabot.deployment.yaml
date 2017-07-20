@@ -36,14 +36,17 @@ spec:
               configMapKeyRef:
                 name: services-config
                 key: graphite_pass
+          - name: HIPCHAT_API_KEY
+            valueFrom:
+              configMapKeyRef:
+                name: services-config
+                key: hipchat_api_key
           - name: ADMIN_EMAIL
             value: ekampf@ebates.com
           - name: TIME_ZONE
             value: US/Pacific
           - name: HIPCHAT_ALERT_ROOM
             value: "3972862"
-          - name: HIPCHAT_API_KEY
-            value: TP9inwEuC3WTpVP0UiicY4Eqa0thdKggEm4edATC
           - name: CABOT_PLUGINS_ENABLED
             value: cabot_alert_hipchat,cabot_alert_twilio,cabot_alert_email,cabot_alert_slack
           - name: DJANGO_SETTINGS_MODULE
