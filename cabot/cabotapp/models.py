@@ -459,6 +459,13 @@ class StatusCheck(PolymorphicModel):
         null=True,
         help_text='HTTP(S) endpoint to poll.',
     )
+
+    data = models.TextField(
+        blank=True,
+        null=True,
+        help_text='HTTP request data',
+    )
+
     username = models.TextField(
         blank=True,
         null=True,
@@ -737,6 +744,7 @@ class HttpStatusCheck(StatusCheck):
     def check_category(self):
         return "HTTP check"
 
+    @property
     def _run(self):
         result = StatusCheckResult(status_check=self)
 
@@ -753,6 +761,7 @@ class HttpStatusCheck(StatusCheck):
                 headers={
                     "User-Agent": settings.HTTP_USER_AGENT,
                 },
+                data=self.data
             )
         except requests.RequestException as e:
             result.error = u'Request error occurred: %s' % (e.message,)
