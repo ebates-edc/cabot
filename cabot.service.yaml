@@ -7,7 +7,8 @@ metadata:
 spec:
   selector:
       name: cabot
-  type: LoadBalancer
+  type: NodePort
   ports:
-    - port: 80
+    - port: 9002
       targetPort: 5000
+      protocol: TCP

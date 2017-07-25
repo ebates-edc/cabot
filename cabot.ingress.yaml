@@ -1,0 +1,12 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: cabot
+  labels:
+    name: cabot
+spec:
+  tls:
+    - secretName: star-ebatesedc-com-tls
+  backend:
+    serviceName: cabot
+    servicePort: 9002

@@ -5,7 +5,6 @@ metadata:
 spec:
   strategy:
     type: Recreate
-  replicas: 1
   template:
     metadata:
       labels:
@@ -17,6 +16,7 @@ spec:
       - name: web
         imagePullPolicy: Always
         image: cabotapp/cabot:0.10.8
+        # image: gcr.io/prod-edc/cabot:latest
         command: ["sh", "-c", "cabot migrate && gunicorn cabot.wsgi:application -b 0.0.0.0:5000 --workers=5"]
         ports:
           - containerPort: 5000
@@ -54,11 +54,15 @@ spec:
           - name: DATABASE_URL
             value: postgres://postgres@127.0.0.1:5432/postgres
           - name: CELERY_BROKER_URL
-            value: amqp://guest:guest@rabbitmq:5672/
+            value: amqp://guest:guest@127.0.0.1:5672//
           - name: LOG_FILE
             value: /dev/null
           - name: HTTP_USER_AGENT
             value: Cabot
+          # - name: WWW_HTTP_HOST
+          #   value: cabot.ebatesedc.com
+          # - name: WWW_SCHEME
+          #   value: https
         livenessProbe:
            tcpSocket:
              port: 5000
@@ -70,16 +74,55 @@ spec:
         imagePullPolicy: Always
         ports:
           - containerPort: 5432
+        env:
+          - name: PGDATA
+            value: /var/lib/postgresql/cabot/pgdata
+          - name: POD_IP
+            valueFrom: { fieldRef: { fieldPath: status.podIP } }
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - exec pg_isready --host $POD_IP
+          initialDelaySeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 6
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - exec pg_isready --host $POD_IP
+          initialDelaySeconds: 25
+          timeoutSeconds: 3
+          periodSeconds: 5
         volumeMounts:
           - name: cabot-persist
-            mountPath: /var/lib/postgresql:rw
+            mountPath: /var/lib/postgresql/cabot:rw
       - image: rabbitmq:3.6-alpine
         name: rabbitmq
         imagePullPolicy: Always
         ports:
           - containerPort: 5672
+        livenessProbe:
+          exec:
+            command:
+            - rabbitmqctl
+            - status
+          initialDelaySeconds: 120
+          timeoutSeconds: 5
+          failureThreshold: 5
+        readinessProbe:
+          exec:
+            command:
+            - rabbitmqctl
+            - status
+          initialDelaySeconds: 10
+          timeoutSeconds: 3
+          periodSeconds: 5
       volumes:
       - name: cabot-persist
         gcePersistentDisk:
-          pdName: cabot-persist
+          pdName: cabot-k8s
           fsType: ext4
