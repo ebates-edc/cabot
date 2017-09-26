@@ -41,6 +41,21 @@ spec:
               configMapKeyRef:
                 name: services-config
                 key: hipchat_api_key
+          - name: TWILIO_ACCOUNT_SID
+            valueFrom:
+              configMapKeyRef:
+                name: services-config
+                key: twilio_account_sid
+          - name: TWILIO_AUTH_TOKEN
+            valueFrom:
+              configMapKeyRef:
+                name: services-config
+                key: twilio_token
+          - name: TWILIO_OUTGOING_NUMBER
+            valueFrom:
+              configMapKeyRef:
+                name: services-config
+                key: twilio_phone
           - name: ADMIN_EMAIL
             value: ekampf@ebates.com
           - name: TIME_ZONE
@@ -59,16 +74,34 @@ spec:
             value: /dev/null
           - name: HTTP_USER_AGENT
             value: Cabot
-          # - name: WWW_HTTP_HOST
-          #   value: cabot.ebatesedc.com
-          # - name: WWW_SCHEME
-          #   value: https
+          - name: WWW_HTTP_HOST
+            value: cabot.ebatesedc.com
+          - name: WWW_SCHEME
+            value: http
         livenessProbe:
            tcpSocket:
              port: 5000
         readinessProbe:
            tcpSocket:
              port: 5000
+      - name: worker
+        imagePullPolicy: Always
+        image: cabotapp/cabot:0.10.8
+        command: ["celery", "worker", "-A", "cabot", "--loglevel=DEBUG",  "--concurrency=16", "-Ofair"]
+        env:
+          - name: SKIP_INIT
+            value: "1"
+          - name: WAIT_FOR_MIGRATIONS
+            value: "1"
+      - name: beat
+        imagePullPolicy: Always
+        image: cabotapp/cabot:0.10.8
+        command: ["celery", "beat", "-A", "cabot", "--loglevel=DEBUG"]
+        env:
+          - name: SKIP_INIT
+            value: "1"
+          - name: WAIT_FOR_MIGRATIONS
+            value: "1"
       - image: postgres:9.6.3-alpine
         name: postgres
         imagePullPolicy: Always
