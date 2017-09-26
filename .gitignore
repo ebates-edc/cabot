@@ -22,4 +22,5 @@ build/
 
 .idea
 Pipfile.lock
+.tox/
 .venv/*
