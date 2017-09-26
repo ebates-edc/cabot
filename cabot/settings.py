@@ -112,6 +112,7 @@ TEMPLATES = [{
             'django.template.context_processors.request',
             'django.contrib.auth.context_processors.auth',
             'django.contrib.messages.context_processors.messages',
+            'cabot.context_processors.global_settings',
         ],
         'debug': force_bool(os.environ.get('TEMPLATE_DEBUG', False))
     },
@@ -135,8 +136,6 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # Uncomment the next line to enable the admin:
-    'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
     'django_filters',
@@ -145,6 +144,9 @@ INSTALLED_APPS = (
     'jsonify',
     'cabot.cabotapp',
     'rest_framework',
+    'dal',
+    'dal_select2',
+    'django.contrib.admin',
 )
 
 AUTH_USER_MODEL = 'auth.User'
@@ -156,16 +158,7 @@ for plugin in CABOT_PLUGINS_ENABLED.split(","):
     exploded = re.split(r'[<>=]+', plugin)
     CABOT_PLUGINS_ENABLED_PARSED.append(exploded[0])
 
-
-CABOT_CUSTOM_CHECK_PLUGINS_PARSED = []
-for plugin in CABOT_CUSTOM_CHECK_PLUGINS.split(","):
-    exploded = re.split(r'[<>=]+', plugin)
-    CABOT_CUSTOM_CHECK_PLUGINS_PARSED.append(exploded[0])
-    CABOT_CUSTOM_CHECK_PLUGINS_PARSED = filter(lambda x: x != '', CABOT_CUSTOM_CHECK_PLUGINS_PARSED)
-
 INSTALLED_APPS += tuple(CABOT_PLUGINS_ENABLED_PARSED)
-INSTALLED_APPS += tuple(CABOT_CUSTOM_CHECK_PLUGINS_PARSED)
-
 
 COMPRESS_PRECOMPILERS = (
     ('text/coffeescript', 'coffee --compile --stdio'),
@@ -285,8 +278,9 @@ if AUTH_LDAP:
 # Github SSO
 AUTH_GITHUB_ENTERPRISE_ORG = force_bool(os.environ.get('AUTH_GITHUB_ENTERPRISE_ORG', False))
 AUTH_GITHUB_ORG = force_bool(os.environ.get('AUTH_GITHUB_ORG', False))
+AUTH_GOOGLE_OAUTH2 = force_bool(os.environ.get('AUTH_GOOGLE_OAUTH2', False))
 
-AUTH_SOCIAL = AUTH_GITHUB_ORG or AUTH_GITHUB_ENTERPRISE_ORG
+AUTH_SOCIAL = AUTH_GITHUB_ORG or AUTH_GITHUB_ENTERPRISE_ORG or AUTH_GOOGLE_OAUTH2
 
 if AUTH_SOCIAL:
     SOCIAL_AUTH_URL_NAMESPACE = 'social'
@@ -307,4 +301,12 @@ if AUTH_GITHUB_ENTERPRISE_ORG:
     SOCIAL_AUTH_GITHUB_ENTERPRISE_ORG_SECRET = os.environ.get('AUTH_GITHUB_ENTERPRISE_ORG_CLIENT_SECRET')
     SOCIAL_AUTH_GITHUB_ENTERPRISE_ORG_NAME = os.environ.get('AUTH_GITHUB_ENTERPRISE_ORG_NAME')
 
+if AUTH_GOOGLE_OAUTH2:
+    AUTHENTICATION_BACKENDS += tuple(['social_core.backends.google.GoogleOAuth2'])
+    SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.environ.get('AUTH_GOOGLE_OAUTH2_KEY')
+    SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.environ.get('AUTH_GOOGLE_OAUTH2_SECRET')
+    SOCIAL_AUTH_GOOGLE_OAUTH2_WHITELISTED_DOMAINS = os.environ.get('AUTH_GOOGLE_OAUTH2_WHITELISTED_DOMAINS', '').split(',')
+
 EXPOSE_USER_API = force_bool(os.environ.get('EXPOSE_USER_API', False))
+ENABLE_SUBSCRIPTION = force_bool(os.environ.get('ENABLE_SUBSCRIPTION', True))
+ENABLE_DUTY_ROTA = force_bool(os.environ.get('ENABLE_DUTY_ROTA', True))

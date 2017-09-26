@@ -14,7 +14,7 @@ from cabot.cabotapp.views import (
 
 from cabot.cabotapp.views import (InstanceListView, InstanceDetailView,
     InstanceUpdateView, InstanceCreateView, InstanceDeleteView,
-    ServiceListView, ServiceDetailView,
+    ServiceListView, ServicePublicListView, ServiceDetailView,
     ServiceUpdateView, ServiceCreateView, ServiceDeleteView,
     UserProfileUpdateView, ShiftListView, subscriptions)
 
@@ -31,7 +31,6 @@ admin.autodiscover()
 
 from importlib import import_module
 import logging
-#from cabot.settings import CABOT_CUSTOM_CHECK_PLUGINS_PARSED as CABOT_CUSTOM_CHECK_PLUGINS
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +42,20 @@ def first_time_setup_wrapper(func):
             return func(*args, **kwargs)
     return wrapper
 
+
+def home_authentication_switcher(request, *args, **kwargs):
+    if cabot_needs_setup():
+        return redirect('first_time_setup')
+    if not request.user.is_authenticated():
+        return ServicePublicListView.as_view()(request, *args, **kwargs)
+    else:
+        return ServiceListView.as_view()(request, *args, **kwargs)
+
 urlpatterns = [
      # for the password reset views
      url('^', include('django.contrib.auth.urls')),
 
-     url(r'^$', view=RedirectView.as_view(url='services/', permanent=False),
+     url(r'^$', view=home_authentication_switcher,
         name='dashboard'),
      url(r'^subscriptions/', view=subscriptions,
         name='subscriptions'),
@@ -67,6 +75,8 @@ urlpatterns = [
 
      url(r'^services/', view=ServiceListView.as_view(),
         name='services'),
+     url(r'^public/', view=ServicePublicListView.as_view(),
+        name='public'),
      url(r'^service/create/', view=ServiceCreateView.as_view(),
         name='create-service'),
      url(r'^service/update/(?P<pk>\d+)/',
@@ -163,32 +173,13 @@ def append_plugin_urls():
     for plugin in settings.CABOT_PLUGINS_ENABLED_PARSED:
         try:
             _module = import_module('%s.urls' % plugin)
-        except Exception as e:
+        except ImportError:
             pass
         else:
             urlpatterns += [
                 url(r'^plugins/%s/' % plugin, include('%s.urls' % plugin))
             ]
 
-    for plugin_name in settings.CABOT_CUSTOM_CHECK_PLUGINS_PARSED:
-        if plugin_name != '':
-            try:
-                plugin = import_module(plugin_name + ".plugin")
-            except Exception as e:
-                pass
-            else:
-                check_name = plugin_name.replace('cabot_check_', '')
-                createViewClass = getattr(plugin, '%sCheckCreateView' % check_name.capitalize())
-                updateViewClass = getattr(plugin, '%sCheckUpdateView' % check_name.capitalize())
-                duplicateFunction = getattr(plugin, 'duplicate_check')
-                urlpatterns += [
-                    url(r'^%scheck/create/' % check_name, view=createViewClass.as_view(),
-                       name='create-' + check_name + '-check'),
-                    url(r'^%scheck/update/(?P<pk>\d+)/' % check_name,
-                       view=updateViewClass.as_view(), name='update-' + check_name + '-check'),
-                    url(r'^%scheck/duplicate/(?P<pk>\d+)/' % check_name,
-                       view=duplicateFunction, name='duplicate-' + check_name + '-check')
-                ]
 
 append_plugin_urls()
 
