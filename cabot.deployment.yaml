@@ -78,6 +78,24 @@ spec:
             value: cabot.ebatesedc.com
           - name: WWW_SCHEME
             value: http
+          - name: EMAIL_HOST
+            value: smtp.sendgrid.net
+          - name: EMAIL_PORT
+            value: "2525"
+          - name: EMAIL_USER
+            valueFrom:
+              configMapKeyRef:
+                name: services-config
+                key: sendgrid_user
+          - name: EMAIL_PASSWORD
+            valueFrom:
+              configMapKeyRef:
+                name: services-config
+                key: sendgrid_password
+          - name: EMAIL_USE_TLS
+            value: "true"
+          - name: CABOT_FROM_EMAIL
+            value: cabot@ebatesedc.com
         livenessProbe:
            tcpSocket:
              port: 5000
